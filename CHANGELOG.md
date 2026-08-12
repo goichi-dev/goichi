@@ -8,9 +8,11 @@ While the version is `v0.x`, breaking changes may land in any minor release.
 
 ## [Unreleased]
 
-First public release preparation. Everything below is relative to the private
-pre-release code, so no upgrade path is documented — there was no published
-version to upgrade from.
+## [0.1.0] - 2026-08-12
+
+First public release. Everything below is relative to the private pre-release
+code, so no upgrade path is documented — there was no published version to
+upgrade from.
 
 ### Fixed
 
@@ -104,3 +106,6 @@ version to upgrade from.
   `AllowClientSSE` and `VersionRequired` were advertised but never read. MCP
   speaks JSON-RPC over raw TCP and is never mounted on the HTTP router, so there
   is no path to configure.
+
+[Unreleased]: https://github.com/goichi-dev/goichi/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/goichi-dev/goichi/releases/tag/v0.1.0
