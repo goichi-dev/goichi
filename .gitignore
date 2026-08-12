@@ -1,0 +1,63 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Compiled CLI output
+/goichi
+/cmd/goichi/goichi
+
+# Test binary, built with `go test -c`
+*.test
+*.tmp
+
+# Output of the go coverage tool
+**/*.out
+coverage.html
+*.cover
+
+# Profiling / trace output
+*.prof
+*.pprof
+*.trace
+
+.cache
+.gocache
+
+# Build output
+tmp/
+dist/
+build/
+
+# Go workspace (local only)
+go.work
+go.work.sum
+
+# Local env / secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# IDE files
+.vscode
+.DS_Store
+.idea
+.claude/
+*.swp
+*~
+Thumbs.db
+desktop.ini
+
+# Dependencies
+/vendor/
+vendor/
+vendor
+/Godeps/
+
+# Local tools
+bin/
