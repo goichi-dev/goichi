@@ -1,7 +1,6 @@
 package goichi
 
 import (
-	"maps"
 	"strings"
 )
 
@@ -116,17 +115,45 @@ func (n *node) insert(path string, handler Handler, ci bool) {
 	child.insert(rest, handler, ci)
 }
 
-// search walks the tree for path, collecting parameter values. Parameter values
-// keep their original casing even when ci is true.
-func (n *node) search(path string, params map[string]string, ci bool) (Handler, map[string]string) {
-	if params == nil {
-		params = make(map[string]string)
+// capture is one parameter value bound during a walk.
+type capture struct {
+	key   string
+	value string
+}
+
+// matchOrder is the priority in which children are tried: an exact literal
+// beats a parameter, and a parameter beats a catch-all.
+var matchOrder = [...]nodeType{static, param, catchAll}
+
+// search walks the tree for path and returns the handler along with the
+// parameters it bound. Parameter values keep their original casing even when
+// ci is true. The returned map is nil for routes that take no parameters.
+func (n *node) search(path string, ci bool) (Handler, map[string]string) {
+	// Sized to cover any realistic route; a deeper one simply grows onto the
+	// heap. The array itself does not escape, so the common case allocates
+	// nothing at all.
+	var scratch [8]capture
+
+	handler, caps := n.match(path, scratch[:0], ci)
+	if handler == nil || len(caps) == 0 {
+		return handler, nil
 	}
 
+	params := make(map[string]string, len(caps))
+	for _, c := range caps {
+		params[c.key] = c.value
+	}
+	return handler, params
+}
+
+// match is the recursive half of search. Bound parameters are appended to caps
+// and a failed branch is undone by truncating back to the length recorded
+// before it was tried, so no per-branch copy is needed.
+func (n *node) match(path string, caps []capture, ci bool) (Handler, []capture) {
 	switch n.nType {
 	case static:
 		if !hasPrefix(path, n.path, ci) {
-			return nil, nil
+			return nil, caps
 		}
 		path = path[len(n.path):]
 
@@ -141,60 +168,40 @@ func (n *node) search(path string, params map[string]string, ci bool) (Handler, 
 			path = path[end:]
 		}
 		if value == "" {
-			return nil, nil
+			return nil, caps
 		}
-		params[n.paramKey] = value
+		caps = append(caps, capture{n.paramKey, value})
 
 	case catchAll:
-		params[n.paramKey] = path
-		return n.handler, params
+		return n.handler, append(caps, capture{n.paramKey, path})
 	}
 
 	if path == "" {
 		if n.handler != nil {
-			return n.handler, params
+			return n.handler, caps
 		}
 		// A bare catch-all child still matches an empty remainder.
 		for _, child := range n.children {
 			if child.nType == catchAll && child.handler != nil {
-				params[child.paramKey] = ""
-				return child.handler, params
+				return child.handler, append(caps, capture{child.paramKey, ""})
 			}
 		}
-		return nil, nil
+		return nil, caps
 	}
 
-	// Priority 1: Static children
-	for _, child := range n.children {
-		if child.nType == static {
-			snapshot := copyParams(params)
-			if h, p := child.search(path, snapshot, ci); h != nil {
-				return h, p
+	mark := len(caps)
+	for _, want := range matchOrder {
+		for _, child := range n.children {
+			if child.nType != want {
+				continue
 			}
-		}
-	}
-
-	// Priority 2: Param children
-	for _, child := range n.children {
-		if child.nType == param {
-			snapshot := copyParams(params)
-			if h, p := child.search(path, snapshot, ci); h != nil {
-				return h, p
+			if h, c := child.match(path, caps[:mark], ci); h != nil {
+				return h, c
 			}
 		}
 	}
 
-	// Priority 3: Catch-all children
-	for _, child := range n.children {
-		if child.nType == catchAll {
-			snapshot := copyParams(params)
-			if h, p := child.search(path, snapshot, ci); h != nil {
-				return h, p
-			}
-		}
-	}
-
-	return nil, nil
+	return nil, caps
 }
 
 // hasPrefix reports whether s starts with prefix, folding ASCII case when ci.
@@ -233,13 +240,4 @@ func commonPrefix(a, b string, ci bool) int {
 		}
 	}
 	return n
-}
-
-func copyParams(src map[string]string) map[string]string {
-	if len(src) == 0 {
-		return make(map[string]string)
-	}
-	dst := make(map[string]string, len(src))
-	maps.Copy(dst, src)
-	return dst
 }

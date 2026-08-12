@@ -2,6 +2,7 @@ package goichi
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -407,41 +408,79 @@ func (a *App) Listen(addr string) error {
 	}
 }
 
+// checkMultiprocess rejects the configurations in which the multiprocess model
+// cannot work, rather than starting and misbehaving.
+func (a *App) checkMultiprocess() error {
+	if a.Config.Server.EnablePortMultiplexing {
+		return errors.New("server.multiprocess cannot be combined with server.enablePortMultiplexing: each child would demultiplex its own connections and run its own protocol servers, so broker subscriptions and sessions would be split across processes")
+	}
+	if !multiprocessSupported {
+		return fmt.Errorf("server.multiprocess requires SO_REUSEPORT, which %s does not provide: run a single process, or put several instances behind a load balancer", runtime.GOOS)
+	}
+	return nil
+}
+
+// superviseChildren runs the master side of the multiprocess model. Each child
+// re-executes this binary and binds the same port with SO_REUSEPORT, so the
+// kernel balances connections between them. The master owns no listener; it
+// only replaces children that exit.
+func (a *App) superviseChildren() error {
+	num := a.Config.Server.NumChildren
+	if num <= 0 {
+		num = runtime.NumCPU()
+	}
+
+	spawn := func() (int, error) {
+		cmd := exec.Command(os.Args[0], os.Args[1:]...)
+		cmd.Env = append(os.Environ(), "GOICHI_CHILD=1")
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Start(); err != nil {
+			return 0, err
+		}
+		return cmd.Process.Pid, nil
+	}
+
+	children := make(map[int]string, num)
+	for i := 0; i < num; i++ {
+		pid, err := spawn()
+		if err != nil {
+			return fmt.Errorf("failed to start child process %d of %d: %w", i+1, num, err)
+		}
+		children[pid] = "active"
+	}
+
+	startMonitor(children, func(int) {
+		pid, err := spawn()
+		if err != nil {
+			log.Printf("⚠️  Failed to restart child process: %v", err)
+			return
+		}
+		children[pid] = "active"
+		log.Printf("🔄 Restarted child process with PID: %d", pid)
+	})
+
+	if *a.Config.Server.ShowStartup {
+		log.Printf("👪 %s master supervising %d child processes", a.Config.Server.AppName, num)
+	}
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	sig := <-sigChan
+	log.Printf("\n📡 Master received signal: %v", sig)
+	return nil
+}
+
 // ListenGraceful binds addr like Listen, and additionally supports the
 // multiprocess model configured by ServerConfig.Multiprocess.
 func (a *App) ListenGraceful(addr string) error {
-	if a.Config.Server.Multiprocess && os.Getenv("GOICHI_CHILD") != "1" {
-		num := a.Config.Server.NumChildren
-		if num <= 0 {
-			num = runtime.NumCPU()
+	if a.Config.Server.Multiprocess {
+		if err := a.checkMultiprocess(); err != nil {
+			return err
 		}
-		// Monitor child processes
-		children := make(map[int]string) // PID -> dummy
-
-		restartChild := func(pid int) {
-			cmd := exec.Command(os.Args[0], os.Args[1:]...)
-			cmd.Env = append(os.Environ(), "GOICHI_CHILD=1")
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			if err := cmd.Start(); err == nil {
-				children[cmd.Process.Pid] = "active"
-				log.Printf("🔄 Restarted child process with PID: %d", cmd.Process.Pid)
-			}
+		if os.Getenv("GOICHI_CHILD") != "1" {
+			return a.superviseChildren()
 		}
-
-		for i := 0; i < num; i++ {
-			cmd := exec.Command(os.Args[0], os.Args[1:]...)
-			cmd.Env = append(os.Environ(), "GOICHI_CHILD=1")
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			if err := cmd.Start(); err == nil {
-				children[cmd.Process.Pid] = "active"
-			}
-		}
-
-		// Keep master process alive and monitor children
-		startMonitor(children, restartChild)
-		select {} // Keep master process alive
 	}
 
 	if err := a.prepare(); err != nil {
@@ -487,14 +526,6 @@ func (a *App) ListenGraceful(addr string) error {
 	}
 
 	host := displayHost(addr, a.Config.Server.TLSEnabled())
-
-	if a.Config.Server.Multiprocess {
-		// Child processes share the listener via SO_REUSEPORT; cmux demultiplexes
-		// per process, so protocol traffic is not balanced across children.
-		if a.Config.Server.EnablePortMultiplexing {
-			log.Print("⚠️  Multiprocess with port multiplexing is not supported yet; protocols may be served by a single child")
-		}
-	}
 
 	if *a.Config.Server.ShowStartup {
 		banner := a.Config.Server.StartupBanner
