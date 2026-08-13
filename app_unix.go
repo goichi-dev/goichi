@@ -3,10 +3,15 @@
 package goichi
 
 import (
-	"golang.org/x/sys/unix"
+	"errors"
 	"net"
 	"syscall"
+
+	"golang.org/x/sys/unix"
 )
+
+// multiprocessSupported reports that children can share a port via SO_REUSEPORT.
+const multiprocessSupported = true
 
 func getListenConfig(multiprocess bool) net.ListenConfig {
 	if multiprocess {
@@ -26,7 +31,12 @@ func startMonitor(children map[int]string, restartChild func(pid int)) {
 		for {
 			pid, err := syscall.Wait4(-1, nil, 0, nil)
 			if err != nil {
-				continue
+				if errors.Is(err, syscall.EINTR) {
+					continue
+				}
+				// ECHILD means there is nothing left to reap. Any other error
+				// will not fix itself, and retrying would spin on the CPU.
+				return
 			}
 
 			if _, ok := children[pid]; ok {

@@ -8,9 +8,56 @@ While the version is `v0.x`, breaking changes may land in any minor release.
 
 ## [Unreleased]
 
-First public release preparation. Everything below is relative to the private
-pre-release code, so no upgrade path is documented — there was no published
-version to upgrade from.
+## [0.2.0] - 2026-08-13
+
+### Changed
+
+- **The router no longer copies the parameter map while matching.** Every
+  request allocated a map up front, and each candidate branch allocated another
+  copy so a failed branch could not leak bindings. Matching now appends to a
+  stack-allocated buffer and rewinds it when a branch fails, and the map is
+  built once, at the end, only for routes that actually take parameters. Routes
+  without parameters no longer allocate a map at all. Measured through
+  `HandleRequest` against a five-route table on one machine — relative, not
+  absolute, numbers:
+
+  | request | before | after |
+  |---|---|---|
+  | `/api/v1/health/status` (static) | 707 ns, 248 B, 6 allocs | 590 ns, 56 B, 2 allocs |
+  | `/api/v1/users/42` | 897 ns, 672 B, 10 allocs | 731 ns, 384 B, 4 allocs |
+  | three parameters | 1707 ns, 2048 B, 18 allocs | 820 ns, 416 B, 4 allocs |
+  | wildcard | 930 ns, 592 B, 8 allocs | 803 ns, 400 B, 4 allocs |
+  | no match (404) | 1550 ns, 1090 B, 18 allocs | 1082 ns, 513 B, 6 allocs |
+
+  Matching behaviour is unchanged: static still beats a parameter, which still
+  beats a catch-all, and a parameter bound on a branch that later fails is not
+  visible to the handler that eventually matches.
+
+### Fixed
+
+- **`Multiprocess` combined with `EnablePortMultiplexing` is now rejected at
+  startup.** It previously logged a warning and started anyway, with a message
+  that described the wrong failure. Each child runs its own cmux and its own
+  protocol servers, so MQTT subscriptions and protocol sessions are split across
+  processes and clients silently miss each other's traffic.
+- **`Multiprocess` now fails with a clear error on platforms without
+  `SO_REUSEPORT`.** On Windows every child bound the same port, all but one
+  failed, the failures were discarded unread, and the master then blocked
+  forever supervising nothing.
+- **Child processes that fail to start are reported.** `exec.Start` errors were
+  dropped, so a master could supervise zero working children and still look
+  healthy.
+- **The master process exits on SIGINT/SIGTERM** instead of parking in a bare
+  `select {}`.
+- **The child reaper no longer spins on the CPU.** Any `Wait4` error other than
+  `EINTR` restarted the loop immediately; it now stops when there is nothing
+  left to reap.
+
+## [0.1.0] - 2026-08-12
+
+First public release. Everything below is relative to the private pre-release
+code, so no upgrade path is documented — there was no published version to
+upgrade from.
 
 ### Fixed
 
@@ -104,3 +151,7 @@ version to upgrade from.
   `AllowClientSSE` and `VersionRequired` were advertised but never read. MCP
   speaks JSON-RPC over raw TCP and is never mounted on the HTTP router, so there
   is no path to configure.
+
+[Unreleased]: https://github.com/goichi-dev/goichi/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/goichi-dev/goichi/releases/tag/v0.2.0
+[0.1.0]: https://github.com/goichi-dev/goichi/releases/tag/v0.1.0

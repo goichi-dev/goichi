@@ -262,7 +262,7 @@ func (r *Router) allowedMethods(path string) []string {
 			}
 			continue
 		}
-		if h, _ := root.search(path[1:], nil, r.foldCase()); h != nil {
+		if h, _ := root.search(path[1:], r.foldCase()); h != nil {
 			allowed = append(allowed, method)
 		}
 	}
@@ -286,7 +286,7 @@ func (r *Router) HandleRequest(ctx *fasthttp.RequestCtx) {
 		if path == "/" {
 			handler = root.handler
 		} else {
-			handler, params = root.search(path[1:], nil, r.foldCase())
+			handler, params = root.search(path[1:], r.foldCase())
 		}
 		if handler != nil {
 			r.run(ctx, handler, params, nil)
@@ -309,7 +309,7 @@ func (r *Router) HandleRequest(ctx *fasthttp.RequestCtx) {
 				if path == "/" {
 					handler = root.handler
 				} else {
-					handler, params = root.search(path[1:], nil, r.foldCase())
+					handler, params = root.search(path[1:], r.foldCase())
 				}
 				if handler != nil {
 					r.run(ctx, handler, params, nil)
