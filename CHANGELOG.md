@@ -8,6 +8,8 @@ While the version is `v0.x`, breaking changes may land in any minor release.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-13
+
 ### Changed
 
 - **The router no longer copies the parameter map while matching.** Every
@@ -150,5 +152,6 @@ upgrade from.
   speaks JSON-RPC over raw TCP and is never mounted on the HTTP router, so there
   is no path to configure.
 
-[Unreleased]: https://github.com/goichi-dev/goichi/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/goichi-dev/goichi/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/goichi-dev/goichi/releases/tag/v0.2.0
 [0.1.0]: https://github.com/goichi-dev/goichi/releases/tag/v0.1.0
