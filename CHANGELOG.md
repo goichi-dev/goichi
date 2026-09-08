@@ -8,6 +8,8 @@ While the version is `v0.x`, breaking changes may land in any minor release.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-08
+
 ### Added
 
 - **Load balancing and health checks for the HTTP reverse proxy.** `proxy.Config`
@@ -196,6 +198,7 @@ upgrade from.
   speaks JSON-RPC over raw TCP and is never mounted on the HTTP router, so there
   is no path to configure.
 
-[Unreleased]: https://github.com/goichi-dev/goichi/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/goichi-dev/goichi/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/goichi-dev/goichi/releases/tag/v0.3.0
 [0.2.0]: https://github.com/goichi-dev/goichi/releases/tag/v0.2.0
 [0.1.0]: https://github.com/goichi-dev/goichi/releases/tag/v0.1.0
