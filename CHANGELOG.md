@@ -8,6 +8,19 @@ While the version is `v0.x`, breaking changes may land in any minor release.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-08
+
+### Changed
+
+- **Goichi now requires Go 1.26.** The minimum was 1.25. `gqlgen`, `golang.org/x/sys`
+  and `golang.org/x/sync` all moved to a 1.26 language version, and holding them
+  back to keep 1.25 working would have pinned the framework to older versions of
+  its own dependencies. Update your toolchain before upgrading; nothing else in
+  this release changes behaviour.
+
+- Updated `gqlgen` to v0.17.95, `golang.org/x/sys` to v0.48.0 and
+  `golang.org/x/sync` to v0.23.0.
+
 ## [0.3.0] - 2026-09-08
 
 ### Added
@@ -198,7 +211,8 @@ upgrade from.
   speaks JSON-RPC over raw TCP and is never mounted on the HTTP router, so there
   is no path to configure.
 
-[Unreleased]: https://github.com/goichi-dev/goichi/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/goichi-dev/goichi/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/goichi-dev/goichi/releases/tag/v0.4.0
 [0.3.0]: https://github.com/goichi-dev/goichi/releases/tag/v0.3.0
 [0.2.0]: https://github.com/goichi-dev/goichi/releases/tag/v0.2.0
 [0.1.0]: https://github.com/goichi-dev/goichi/releases/tag/v0.1.0

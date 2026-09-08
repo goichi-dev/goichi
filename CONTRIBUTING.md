@@ -10,7 +10,7 @@ cd goichi
 go build ./...
 ```
 
-Goichi requires Go 1.25 or later. The repository is a library: the only thing you
+Goichi requires Go 1.26 or later. The repository is a library: the only thing you
 can run directly lives in
 [goichi-examples](https://github.com/goichi-dev/goichi-examples), which is where
 new runnable demos belong.

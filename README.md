@@ -38,7 +38,7 @@ whichever protocol the caller speaks.
 go get github.com/goichi-dev/goichi
 ```
 
-Requires Go 1.25 or later.
+Requires Go 1.26 or later.
 
 ## Quick Start
 
