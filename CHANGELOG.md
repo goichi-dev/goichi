@@ -8,6 +8,50 @@ While the version is `v0.x`, breaking changes may land in any minor release.
 
 ## [Unreleased]
 
+### Added
+
+- **Load balancing and health checks for the HTTP reverse proxy.** `proxy.Config`
+  takes a pool of `Targets` (with per-target `Weight`) instead of only a single
+  `Target`, selected by `RoundRobin`, `Random`, `LeastConn` or `IPHash`. Enabling
+  `HealthCheck` probes each target in the background and takes a failing one out
+  of rotation after `FailThreshold` consecutive failures, restoring it after
+  `SuccessThreshold` successes. `MaxRetries` retries a transport failure against
+  a different target. `proxy.Balance` is a shorthand for the common pool case.
+
+- **WebSocket and Upgrade passthrough.** With `WebSocket: true` the proxy replays
+  the handshake upstream, relays the real response — including a rejection — and
+  then pipes raw bytes both ways for the life of the connection.
+
+- **`proxy.NewTCPProxy`: a layer-4 reverse proxy.** It fronts any byte-stream
+  service (Postgres, MySQL, Redis, SMTP) and implements `ProtocolHandler`, so it
+  starts, stops and reports alongside the HTTP, gRPC and MQTT servers, sharing
+  their load balancing and health checking. It supports connection limits, an
+  idle timeout, TLS on either side, and `SetListener` for running behind cmux.
+
+  The `OnConnect`, `OnClientData`, `OnUpstreamData` and `OnClose` hooks expose
+  the raw stream, so a caller can reject a connection before an upstream is
+  dialled, inspect or rewrite the bytes in flight, and account for what each
+  connection moved — without the framework parsing any particular wire protocol.
+
+- `proxy.NewProxy` returns the proxy itself, for callers that want to drive
+  `Do` from their own handler or report target health.
+
+### Fixed
+
+- **The reverse proxy no longer forwards hop-by-hop headers.** It mutated the
+  inbound request in place and sent it upstream verbatim, so `Connection`,
+  `Upgrade`, `Transfer-Encoding` and any header named by `Connection` leaked to
+  the upstream, and the mutated request was still what later middleware and the
+  error handler saw. The request is now copied and stripped per RFC 9110, in
+  both directions.
+
+- **`X-Forwarded-For` is appended to rather than overwritten,** so the client
+  chain through several proxies survives instead of collapsing to the last hop.
+
+- **`X-Forwarded-Proto` reports the real scheme.** It was hardcoded to `http`,
+  so a TLS-terminating deployment told every upstream that the client had
+  connected in cleartext — enough to break redirect and cookie decisions.
+
 ## [0.2.0] - 2026-08-13
 
 ### Changed

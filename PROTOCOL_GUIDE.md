@@ -1,6 +1,8 @@
 # Goichi Multi-Protocol Support - Guide
 
-Goichi supports WebSocket, GraphQL, gRPC, MQTT and MCP (5 protocols). This guide covers quick-start, configuration examples, and production recommendations.
+Goichi supports WebSocket, GraphQL, gRPC, MQTT and MCP (5 protocols), plus a TCP
+reverse proxy that fronts any byte-stream service. This guide covers quick-start,
+configuration examples, and production recommendations.
 
 ---
 
@@ -13,6 +15,7 @@ Goichi supports WebSocket, GraphQL, gRPC, MQTT and MCP (5 protocols). This guide
 | gRPC | 8082 | High-performance RPC using HTTP/2 and protobuf |
 | MQTT | 1883 | Lightweight IoT pub/sub broker |
 | MCP | 8083 | AI tool/context protocol for agents |
+| TCP proxy | any | Layer-4 reverse proxy for Postgres, MySQL, Redis, SMTP |
 
 ---
 
@@ -39,6 +42,7 @@ http://127.0.0.1:8080/docs for the generated API documentation.
 - The unified JWT chain skips the generated docs, `/favicon.ico` and the health endpoint; mark any other public route with `.NoAuth()`.
 - MCP speaks JSON-RPC over a raw TCP socket, not HTTP. It always listens on its own port and is never mounted on the shared HTTP router, so it has no URL path and cannot be reached with `curl`.
 - The app exposes protocol registry helpers: `InitProtocols`, `GetProtocols`, `StartAllProtocols`, `StopAllProtocols` and `RegisterProtocol`.
+- The TCP proxy (`proxy.NewTCPProxy`) is a protocol server like any other: register it with `RegisterProtocol` and it starts and stops with the app. It forwards bytes and does not parse them, so it carries no JWT enforcement of its own — authentication stays with the upstream service, and `OnConnect` is the place for connection-level policy such as an IP allow-list.
 
 ### Unified authentication across protocols
 
@@ -49,6 +53,7 @@ Configure a JWT secret once via `SetJWTAuth` / `Config.JWT`, and every protocol 
 - **gRPC / ConnectRPC** — validated via interceptor / HTTP middleware. `MaxConcurrentStreams` and keepalive are applied.
 - **MQTT** — a single auth hook governs CONNECT: with a secret set, the CONNECT password must be a valid JWT. Anonymous connections are allowed only when `AllowAnonymous` is set and `AuthEnabled` is false.
 - **MCP** — clients must authenticate in the `initialize` call (`params.token`); all other methods are rejected until then. Requests are size-capped (`MaxRequestBytes`) and idle-timeout bounded.
+- **TCP proxy** — not covered by unified auth: it is a byte pipe, and the upstream service (Postgres, Redis, …) performs its own authentication. Use `OnConnect` to reject a connection before an upstream is dialled.
 
 ### Built-in TLS
 
@@ -66,6 +71,8 @@ Each protocol config (and `ServerConfig`) accepts `TLSCertFile` / `TLSKeyFile`. 
 - [ ] Use reverse-proxy headers (X-Forwarded-For) if behind load balancers for correct IP-based rate-limiting.
 - [ ] Review cache rules to avoid caching authenticated responses.
 - [ ] Add monitoring and health-check endpoints.
+- [ ] For a TCP proxy in front of a database, set `MaxConnections` and `IdleTimeout` so a client cannot exhaust the upstream's connection slots, and enable `HealthCheck` so a failed replica leaves the pool.
+- [ ] Do not expose a TCP proxy to an untrusted network on the assumption that the proxy authenticates: it does not. Restrict it at the network layer or in `OnConnect`.
 
 ---
 
