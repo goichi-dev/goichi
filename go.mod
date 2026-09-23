@@ -12,7 +12,7 @@ require (
 	github.com/soheilhy/cmux v0.1.5
 	github.com/valyala/fasthttp v1.74.0
 	golang.org/x/sys v0.48.0
-	google.golang.org/grpc v1.83.2
+	google.golang.org/grpc v1.84.0
 )
 
 require github.com/coder/websocket v1.8.15 // indirect
