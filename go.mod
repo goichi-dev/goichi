@@ -6,7 +6,7 @@ require (
 	github.com/99designs/gqlgen v0.17.95
 	github.com/eclipse/paho.mqtt.golang v1.5.1
 	github.com/fasthttp/websocket v1.5.12
-	github.com/goccy/go-json v0.10.6
+	github.com/goccy/go-json v0.11.1
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/mochi-mqtt/server/v2 v2.7.9
 	github.com/soheilhy/cmux v0.1.5
