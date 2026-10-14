@@ -11,7 +11,7 @@ require (
 	github.com/mochi-mqtt/server/v2 v2.7.9
 	github.com/soheilhy/cmux v0.1.5
 	github.com/valyala/fasthttp v1.74.0
-	golang.org/x/sys v0.48.0
+	golang.org/x/sys v0.49.0
 	google.golang.org/grpc v1.83.2
 )
 
