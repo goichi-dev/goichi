@@ -8,6 +8,18 @@ While the version is `v0.x`, breaking changes may land in any minor release.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-26
+
+### Changed
+
+- Updated `fasthttp` to v1.80.0, `goccy/go-json` to v0.12.0, `grpc` to v1.85.0,
+  `gqlgen` to v0.17.98, `golang.org/x/sys` to v0.50.0 and `paho.mqtt.golang` to
+  v1.5.2, along with their indirect dependencies. `go-json` moved two minor
+  versions and now supports the `omitzero` struct tag option, so check your JSON
+  output if your types use it. The minimum Go version stays 1.26.
+
+- CI now builds and vets on Go 1.27 as well as 1.26.
+
 ## [0.4.0] - 2026-09-08
 
 ### Changed
@@ -211,7 +223,8 @@ upgrade from.
   speaks JSON-RPC over raw TCP and is never mounted on the HTTP router, so there
   is no path to configure.
 
-[Unreleased]: https://github.com/goichi-dev/goichi/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/goichi-dev/goichi/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/goichi-dev/goichi/releases/tag/v0.5.0
 [0.4.0]: https://github.com/goichi-dev/goichi/releases/tag/v0.4.0
 [0.3.0]: https://github.com/goichi-dev/goichi/releases/tag/v0.3.0
 [0.2.0]: https://github.com/goichi-dev/goichi/releases/tag/v0.2.0
