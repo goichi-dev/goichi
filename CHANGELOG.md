@@ -8,6 +8,14 @@ While the version is `v0.x`, breaking changes may land in any minor release.
 
 ## [Unreleased]
 
+### Changed
+
+- **The default security headers cost less per request.** `SecurityHeaders`,
+  which every app installs by default, set its six headers with `Header.Set`,
+  which normalises and validates each key again on every request. The keys and
+  values are now prepared once and set with `SetCanonical`. The response bytes
+  are unchanged, and a handler can still override any of these headers.
+
 ## [0.5.0] - 2026-11-26
 
 ### Changed
