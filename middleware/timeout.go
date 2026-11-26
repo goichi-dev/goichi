@@ -30,9 +30,10 @@ func Timeout(d time.Duration) core.Middleware {
 
 			subCtx := *c // shallow copy: Locals/JWTClaims are shared with the timeout path
 			subCtx.Params = slices.Clone(c.Params)
+			remote := c.RequestCtx.RemoteAddr()
 			go func() {
 				var sub fasthttp.RequestCtx
-				sub.Init(&reqCopy, c.RequestCtx.RemoteAddr(), nil)
+				sub.Init(&reqCopy, remote, nil)
 				subCtx.RequestCtx = &sub
 				err := next(&subCtx)
 				done <- result{err: err, sub: &sub}

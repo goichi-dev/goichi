@@ -25,6 +25,13 @@ While the version is `v0.x`, breaking changes may land in any minor release.
   parameters it hands to the handler, so a handler still running after its
   timeout keeps its own values.
 
+### Fixed
+
+- **`middleware.Timeout` no longer reads the live request from its detached
+  goroutine.** It took the client address from the shared `RequestCtx` inside
+  the goroutine, which fasthttp may already have handed to another request once
+  the timeout fired. The address is now read before the goroutine starts.
+
 ## [0.5.1] - 2026-11-26
 
 ### Changed
