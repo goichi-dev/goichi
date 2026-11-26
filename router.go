@@ -11,6 +11,8 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+var contextPool = sync.Pool{New: func() any { return new(pooledContext) }}
+
 // Router matches incoming requests against a radix tree per HTTP method and
 // invokes the registered handler.
 //
@@ -46,6 +48,11 @@ type Router struct {
 
 	buildOnce sync.Once
 	fallback  *fallbackHandlers
+}
+
+type pooledContext struct {
+	ctx    Context
+	params [8]capture
 }
 
 // routeEntry is a route as declared by the caller, before middleware is applied.
@@ -252,6 +259,7 @@ func (r *Router) matchPath(path string) string {
 // allowedMethods lists the methods that have a route matching path.
 func (r *Router) allowedMethods(path string) []string {
 	var allowed []string
+	var scratch [8]capture
 	for method, root := range r.trees {
 		if root == nil {
 			continue
@@ -262,7 +270,7 @@ func (r *Router) allowedMethods(path string) []string {
 			}
 			continue
 		}
-		if h, _ := root.search(path[1:], r.foldCase()); h != nil {
+		if h, _ := root.search(path[1:], r.foldCase(), scratch[:0]); h != nil {
 			allowed = append(allowed, method)
 		}
 	}
@@ -274,6 +282,9 @@ func (r *Router) allowedMethods(path string) []string {
 func (r *Router) HandleRequest(ctx *fasthttp.RequestCtx) {
 	r.buildOnce.Do(r.build)
 
+	pc := contextPool.Get().(*pooledContext)
+	defer releaseContext(pc)
+
 	method := string(ctx.Method())
 	path := r.matchPath(string(ctx.Path()))
 	if path == "" {
@@ -282,14 +293,14 @@ func (r *Router) HandleRequest(ctx *fasthttp.RequestCtx) {
 
 	if root := r.trees[method]; root != nil {
 		var handler Handler
-		var params map[string]string
+		var params []capture
 		if path == "/" {
 			handler = root.handler
 		} else {
-			handler, params = root.search(path[1:], r.foldCase())
+			handler, params = root.search(path[1:], r.foldCase(), pc.params[:0])
 		}
 		if handler != nil {
-			r.run(ctx, handler, params, nil)
+			r.run(pc, ctx, handler, params, nil)
 			return
 		}
 	}
@@ -299,35 +310,41 @@ func (r *Router) HandleRequest(ctx *fasthttp.RequestCtx) {
 	if allowed := r.allowedMethods(path); len(allowed) > 0 {
 		if method == "OPTIONS" {
 			allowed = appendIfMissing(allowed, "OPTIONS")
-			r.run(ctx, r.fallback.options, nil, allowed)
+			r.run(pc, ctx, r.fallback.options, nil, allowed)
 			return
 		}
 		if method == "HEAD" && slices.Contains(allowed, "GET") {
 			if root := r.trees["GET"]; root != nil {
 				var handler Handler
-				var params map[string]string
+				var params []capture
 				if path == "/" {
 					handler = root.handler
 				} else {
-					handler, params = root.search(path[1:], r.foldCase())
+					handler, params = root.search(path[1:], r.foldCase(), pc.params[:0])
 				}
 				if handler != nil {
-					r.run(ctx, handler, params, nil)
+					r.run(pc, ctx, handler, params, nil)
 					ctx.Response.ResetBody()
 					return
 				}
 			}
 		}
 		allowed = appendIfMissing(allowed, "OPTIONS")
-		r.run(ctx, r.fallback.notAllowed, nil, allowed)
+		r.run(pc, ctx, r.fallback.notAllowed, nil, allowed)
 		return
 	}
 
-	r.run(ctx, r.fallback.notFound, nil, nil)
+	r.run(pc, ctx, r.fallback.notFound, nil, nil)
 }
 
-func (r *Router) run(ctx *fasthttp.RequestCtx, handler Handler, params map[string]string, allowed []string) {
-	c := &Context{RequestCtx: ctx, Params: params}
+func releaseContext(pc *pooledContext) {
+	*pc = pooledContext{}
+	contextPool.Put(pc)
+}
+
+func (r *Router) run(pc *pooledContext, ctx *fasthttp.RequestCtx, handler Handler, params []capture, allowed []string) {
+	c := &pc.ctx
+	c.RequestCtx, c.Params = ctx, params
 	if len(allowed) > 0 {
 		c.Set(allowLocalsKey, strings.Join(allowed, ", "))
 	}

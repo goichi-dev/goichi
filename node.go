@@ -2,6 +2,8 @@ package goichi
 
 import (
 	"strings"
+
+	"github.com/goichi-dev/goichi/core"
 )
 
 type nodeType uint8
@@ -11,6 +13,10 @@ const (
 	param
 	catchAll
 )
+
+// matchOrder is the priority in which children are tried: an exact literal
+// beats a parameter, and a parameter beats a catch-all.
+var matchOrder = [...]nodeType{static, param, catchAll}
 
 // node is a radix-tree node. A tree holds the routes of exactly one HTTP method.
 type node struct {
@@ -116,34 +122,18 @@ func (n *node) insert(path string, handler Handler, ci bool) {
 }
 
 // capture is one parameter value bound during a walk.
-type capture struct {
-	key   string
-	value string
-}
-
-// matchOrder is the priority in which children are tried: an exact literal
-// beats a parameter, and a parameter beats a catch-all.
-var matchOrder = [...]nodeType{static, param, catchAll}
+type capture = core.Param
 
 // search walks the tree for path and returns the handler along with the
-// parameters it bound. Parameter values keep their original casing even when
-// ci is true. The returned map is nil for routes that take no parameters.
-func (n *node) search(path string, ci bool) (Handler, map[string]string) {
-	// Sized to cover any realistic route; a deeper one simply grows onto the
-	// heap. The array itself does not escape, so the common case allocates
-	// nothing at all.
-	var scratch [8]capture
-
-	handler, caps := n.match(path, scratch[:0], ci)
+// parameters it bound, appended to buf. Parameter values keep their original
+// casing even when ci is true. The returned slice is nil for routes that take
+// no parameters.
+func (n *node) search(path string, ci bool, buf []capture) (Handler, []capture) {
+	handler, caps := n.match(path, buf[:0], ci)
 	if handler == nil || len(caps) == 0 {
 		return handler, nil
 	}
-
-	params := make(map[string]string, len(caps))
-	for _, c := range caps {
-		params[c.key] = c.value
-	}
-	return handler, params
+	return handler, caps
 }
 
 // match is the recursive half of search. Bound parameters are appended to caps
@@ -170,10 +160,10 @@ func (n *node) match(path string, caps []capture, ci bool) (Handler, []capture) 
 		if value == "" {
 			return nil, caps
 		}
-		caps = append(caps, capture{n.paramKey, value})
+		caps = append(caps, capture{Key: n.paramKey, Value: value})
 
 	case catchAll:
-		return n.handler, append(caps, capture{n.paramKey, path})
+		return n.handler, append(caps, capture{Key: n.paramKey, Value: path})
 	}
 
 	if path == "" {
@@ -183,7 +173,7 @@ func (n *node) match(path string, caps []capture, ci bool) (Handler, []capture) 
 		// A bare catch-all child still matches an empty remainder.
 		for _, child := range n.children {
 			if child.nType == catchAll && child.handler != nil {
-				return child.handler, append(caps, capture{child.paramKey, ""})
+				return child.handler, append(caps, capture{Key: child.paramKey, Value: ""})
 			}
 		}
 		return nil, caps

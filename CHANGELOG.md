@@ -8,6 +8,23 @@ While the version is `v0.x`, breaking changes may land in any minor release.
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking: `Context.Params` is now a `[]core.Param` instead of a
+  `map[string]string`.** Each `core.Param` holds a `Key` and a `Value`. Read
+  parameters with `c.Param("id")`, which works as before; only code that read
+  or wrote the `Params` map directly needs changing. When a route uses the same
+  parameter name twice, `Param` still returns the last value.
+
+- **Routing a request allocates less.** The router now reuses each request's
+  `Context` and keeps its parameters in a fixed buffer inside it, instead of
+  allocating a `Context` and a parameter map per request. A route with up to
+  eight parameters now costs one allocation to match (the path), down from
+  three or more. As documented, a `Context` must not be kept after the handler
+  returns; it is reused by a later request. `middleware.Timeout` copies the
+  parameters it hands to the handler, so a handler still running after its
+  timeout keeps its own values.
+
 ## [0.5.1] - 2026-11-26
 
 ### Changed

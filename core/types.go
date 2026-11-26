@@ -23,11 +23,16 @@ type ErrorHandler func(c *Context, err error) error
 // Middleware wraps a Handler to run code before and after it.
 type Middleware func(Handler) Handler
 
+type Param struct {
+	Key   string
+	Value string
+}
+
 // Context carries one request and its response. It is created per request and
 // must not be retained after the handler returns.
 type Context struct {
 	RequestCtx *fasthttp.RequestCtx
-	Params     map[string]string
+	Params     []Param
 	JWTClaims  map[string]any
 	Locals     map[string]any
 }
@@ -87,7 +92,12 @@ func WriteJSONError(ctx *fasthttp.RequestCtx, msg string) error {
 
 // Param returns the value of a ":name" path parameter.
 func (c *Context) Param(key string) string {
-	return c.Params[key]
+	for i := len(c.Params) - 1; i >= 0; i-- {
+		if c.Params[i].Key == key {
+			return c.Params[i].Value
+		}
+	}
+	return ""
 }
 
 // Query returns a URL query parameter, or the empty string.

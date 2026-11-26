@@ -3,6 +3,7 @@ package middleware
 import (
 	"github.com/goichi-dev/goichi/core"
 	"github.com/valyala/fasthttp"
+	"slices"
 	"time"
 )
 
@@ -27,7 +28,8 @@ func Timeout(d time.Duration) core.Middleware {
 			var reqCopy fasthttp.Request
 			c.RequestCtx.Request.CopyTo(&reqCopy)
 
-			subCtx := *c // shallow copy: Params/Locals/JWTClaims are not read by the timeout path
+			subCtx := *c // shallow copy: Locals/JWTClaims are shared with the timeout path
+			subCtx.Params = slices.Clone(c.Params)
 			go func() {
 				var sub fasthttp.RequestCtx
 				sub.Init(&reqCopy, c.RequestCtx.RemoteAddr(), nil)
