@@ -38,6 +38,9 @@ jobs:
           go mod tidy
           git diff --exit-code -- go.mod go.sum
 
+      - name: go mod verify
+        run: go mod verify
+
       - name: build
         run: go build ./...
 
