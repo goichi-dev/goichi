@@ -8,6 +8,8 @@ While the version is `v0.x`, breaking changes may land in any minor release.
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-26
+
 ### Changed
 
 - **The default security headers cost less per request.** `SecurityHeaders`,
@@ -231,7 +233,8 @@ upgrade from.
   speaks JSON-RPC over raw TCP and is never mounted on the HTTP router, so there
   is no path to configure.
 
-[Unreleased]: https://github.com/goichi-dev/goichi/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/goichi-dev/goichi/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/goichi-dev/goichi/releases/tag/v0.5.1
 [0.5.0]: https://github.com/goichi-dev/goichi/releases/tag/v0.5.0
 [0.4.0]: https://github.com/goichi-dev/goichi/releases/tag/v0.4.0
 [0.3.0]: https://github.com/goichi-dev/goichi/releases/tag/v0.3.0
